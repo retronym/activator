@@ -8,8 +8,6 @@ define(['webjars!knockout', './router', './navigation'], function(ko, router, na
 		router: router,
 		tutorial: null, // filled in by init to prevent cycles
 		snap: {
-			// TODO - replace uses of this with app.name() below
-			appName: window.serverAppModel.name ? window.serverAppModel.name : window.serverAppModel.id,
 			pageTitle: ko.observable(),
 			activeWidget: ko.observable(""),
 			// TODO load last value from somewhere until we get a message from the iframe
