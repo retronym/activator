@@ -1,5 +1,5 @@
 // Sort of MVC (Module, Grid, Router)
-define(['./model', './pluginapi', './streams', './plugin'], function(model, api, streams, plugins) {
+define(['./model', './pluginapi', './streams', './plugin', './tutorial/tutorial'], function(model, api, streams, plugins, Tutorial) {
 
 	var ko = api.ko;
 
@@ -14,7 +14,7 @@ define(['./model', './pluginapi', './streams', './plugin'], function(model, api,
 	});
 
 	// Init model for the whole app view
-	model.init(plugins);
+	model.init(plugins, new Tutorial());
 
 	var receiveMessage = function(event) {
 		if (event.origin !== "https://typesafe.com") { // TODO change to typesafe.com

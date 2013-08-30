@@ -1,20 +1,17 @@
-define(['./pluginapi', './router', './tutorial/tutorial', './navigation'], function(api, router, Tutorial, navigation) {
-
-	var ko = api.ko;
+define(['webjars!knockout', './router', './navigation'], function(ko, router, navigation) {
 
 	// Model for the whole app view; created in two parts
 	// so that this first part is available during construction
 	// of the second part.
 	var model = {
-		api: api,
-		plugins: null, // filled in by init
+		plugins: null, // filled in by init to prevent cycles
 		router: router,
-		tutorial: new Tutorial(),
+		tutorial: null, // filled in by init to prevent cycles
 		snap: {
 			// TODO - replace uses of this with app.name() below
 			appName: window.serverAppModel.name ? window.serverAppModel.name : window.serverAppModel.id,
 			pageTitle: ko.observable(),
-			activeWidget: api.activeWidget,
+			activeWidget: ko.observable(""),
 			// TODO load last value from somewhere until we get a message from the iframe
 			signedIn: ko.observable(false),
 			app: {
@@ -25,10 +22,11 @@ define(['./pluginapi', './router', './tutorial/tutorial', './navigation'], funct
 			}
 		},
 		// This is the initialization of the application...
-		init: function(plugins) {
+		init: function(plugins, tutorial) {
 			var self = this;
 			self.widgets = [];
 			self.plugins = plugins;
+			self.tutorial = tutorial;
 			// TODO - initialize plugins in a better way perhaps...
 			$.each(self.plugins.list, function(idx,plugin) {
 				self.router.registerRoutes(plugin.routes);
