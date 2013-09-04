@@ -10,21 +10,22 @@ require([
 	require([
 	'core/streams',
 	'core/widgets/fileselection',
-	'core/widgets/log',
-	'core/widgets/templatelist'], function(streams, FileSelection, log, TemplateList) {
+	'core/widgets/log'
+	// ,'core/widgets/templatelist'
+	], function(streams, FileSelection, log, TemplateList) {
 		// Register handlers on the UI.
 		$(function() {
 			// Note: These only show up if we haven't accepted this license.
 			var acceptYesButton = $('#acceptYesButton');
-			var acceptNoButton = $('#acceptNoButton');
-			acceptNoButton.on('click', function(e) {
-				e.preventDefault();
-				if(confirm('You will be unable to use activator.\n'+
-						'Please close this webpage, stop the server and remove all activator software.')) {
-					// Note: this will only work on some browsers.
-					window.close();
-				}
-			});
+			// var acceptNoButton = $('#acceptNoButton');
+			// acceptNoButton.on('click', function(e) {
+			// 	e.preventDefault();
+			// 	if(confirm('You will be unable to use activator.\n'+
+			// 			'Please close this webpage, stop the server and remove all activator software.')) {
+			// 		// Note: this will only work on some browsers.
+			// 		window.close();
+			// 	}
+			// });
 			acceptYesButton.on('click', function(e) {
 				// Tell the server we accepted.
 				var event = {
@@ -48,13 +49,13 @@ require([
 			});
 
 			function toggleWorking() {
-				$('#homePage, #workingPage').toggle();
+				$('#open, #new, #working').toggle();
 			}
 			streams.subscribe(function(event) {
 				// Handle all the remote events here...
 				switch(event.response) {
 					case 'LicenseAccepted':
-						$('#homePage, #licensePage').toggle();
+						$('body').toggleClass("accepted");
 						break;
 					case 'Status':
 						logs.info(event.info);
@@ -226,6 +227,7 @@ require([
 			});
 			$('#open').on('click', '#openButton', function(event) {
 				event.preventDefault();
+				$("#openButton").toggleClass("openned");
 				toggleAppBrowser();
 			});
 
@@ -235,15 +237,15 @@ require([
 				toggleSelectTemplateBrowser();
 			});
 
-			var showTemplateWidget = new TemplateList({
-				onTemplateSelected: function(template) {
-					toggleSelectTemplateBrowser();
-					// Telegate to generic "select template" method.
-					updateSelectedTemplate(template);
-				}
-			});
-			showTemplateWidget.renderTo('#templatePage');
-			window.showTemplateWidget = showTemplateWidget;
+			// var showTemplateWidget = new TemplateList({
+			// 	onTemplateSelected: function(template) {
+			// 		toggleSelectTemplateBrowser();
+			// 		// Telegate to generic "select template" method.
+			// 		updateSelectedTemplate(template);
+			// 	}
+			// });
+			// showTemplateWidget.renderTo('#templatePage');
+			// window.showTemplateWidget = showTemplateWidget;
 
 			// TODO - Register file selection widget...
 			// Register fancy click and open app buttons

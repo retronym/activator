@@ -52,7 +52,7 @@
 			ga('send', 'pageview');
 		</script>
 	</head>
-	<body class="noAnim right-open">
+	<body class="right-open">
 		<header>
 			<nav>
 				<ul class="rockets">
@@ -79,6 +79,21 @@
 					</ul>
 				</div>
 			</div>
+			<dl id="user">
+				<dt>User</dt>
+				<dd>
+					<form>
+						<input type="text" placeholder="Email">
+						<input type="password" placeholder="Password">
+						<button type="submit">Login</button>
+						<a href="##">lost password?</a>
+					</form>
+					<div>
+						<a href="#">Logout</a>
+						<a href="#">Profile</a>
+					</div>
+				</dd>
+			</dl>
 			<a href="@routes.Application.forceHome()" id="typesafe">Typesafe</a>
 		</header>
 		<aside class="tutorial" data-bind="snapView: tutorial">

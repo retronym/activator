@@ -34,6 +34,7 @@ GET     /api/event/kill             controllers.api.Events.kill
 # Base flow ->  Select Template -> Running Application.
 GET     /                            controllers.Application.index
 GET     /home                        controllers.Application.forceHome
+GET     /home2                       controllers.Application.forceHome2
 GET     /test                        controllers.Application.test
 GET     /app/:id                     controllers.Application.redirectToApp(id)
 GET     /app/:id/                    controllers.Application.app(id)

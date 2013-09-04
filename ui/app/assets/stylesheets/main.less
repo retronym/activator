@@ -62,10 +62,11 @@ body > header {
 			height: 50px;
 			line-height: 50px;
 			display: inline-block;
-			padding: 0 40px 0 15px;
+			padding: 0 25px;
 			color: #758590;
 			font-size: 1em;
 			font-weight: 600;
+			text-align: center;
 			&.active {
 				position: relative;
 				color: white;
@@ -73,9 +74,10 @@ body > header {
 					content: " ";
 					position: absolute;
 					bottom: 0;
-					left: 13px;
+					left: 50%;
 					width: 0;
 					height: 0;
+					margin-left: -8px;
 					border-left: 8px solid transparent;
 					border-right: 8px solid transparent;
 					border-bottom: 8px solid #53cdec;
@@ -126,6 +128,7 @@ body > header {
 	background-size: 50px;
 	text-indent: -99em;
 	overflow: hidden;
+	border-left: 1px solid #29353E;
 }
 
 body > aside {
@@ -145,21 +148,8 @@ body > aside {
 
 .rockets > li > a {
   &.active {
-    position: relative;
-    color: white;
-    &:after {
-      content: " ";
-      position: absolute;
-      bottom: 0;
-      left: 11px;
-      width: 0;
-      height: 0;
-      border-left: 8px solid transparent;
-      border-right: 8px solid transparent;
-      border-bottom: 8px solid #53cdec;
-    }
     &[href="#"]:after {
-      border-bottom: 8px solid #d3d9df;
+      border-bottom-color: #d3d9df;
     }
   }
 }
@@ -167,10 +157,13 @@ body > aside {
 #switch {
 	position: absolute;
 	top: 0;
-	right: 52px;
+	right: 100px;
 	height: 50px;
-	width: 398px;
-	background: #e25758;
+	width: 350px;
+	border-left: 1px solid #29353E;
+	&:hover {
+		background-color: #29353E;
+	}
 	.label {
 		white-space: nowrap;
 		display: block;
@@ -202,12 +195,12 @@ body > aside {
 		display: none;
 		position: fixed;
 		top: 50px;
-		right: 52px;
-		width: 398px;
-		height: 300px;
+		right: 100px;
+		width: 350px;
+		max-height: 300px;
 		background: #fff;
 		z-index: 9999;
-		box-shadow: 3px 3px 4px rgba(0,0,0,.2);
+		box-shadow: 0 2px 4px rgba(0,0,0,.1);
 		.clear-after();
 		overflow: auto;
 	}
@@ -240,6 +233,84 @@ body > aside {
         }
     }
 }
+
+
+#user {
+	display: block;
+	position: absolute;
+	top: 0;
+	right: 50px;
+	dt {
+		width: 50px;
+		height: 50px;
+		background: #364550 url(/public/images/user.png);
+		text-indent: -99em;
+		cursor: pointer;
+		border-left: 1px solid #29353E;
+		&:hover {
+			background-color: #29353E;
+		}
+	}
+	dd {
+		//display: none;
+		position: fixed;
+		top: 50px;
+		right: 50px;
+		width: 200px;
+		min-height: 110px;
+		padding: 10px;
+		background: #fff;
+		z-index: 9999;
+		box-shadow: 0 2px 4px rgba(0,0,0,.1);
+	}
+	input {
+		display: block;
+		width: 158px;
+		padding: 5px 10px;
+		margin-bottom: 5px;
+		border: 1px solid #D3D9DF;
+		border-radius: 2px;
+	}
+	button {
+		display: block;
+		width: 180px;
+		padding: 5px 10px;
+		margin-bottom: 5px;
+		background: #D3D9DF;
+		border: none;
+		border-radius: 2px;
+		background: #53cdec;
+		font-family: "HelveticaNeue-CondensedBold", "Open Sans Condensed", "Helvetica", sans-serif;
+		font-size: 15px;
+		color: rgb(255, 255, 255);
+		text-transform: uppercase;
+	}
+	a {
+		color: #46BCD9;
+	}
+	form a:hover {
+		text-decoration: underline;
+	}
+	div {
+		a {
+			padding: 5px;
+			display: block;
+			border-top: 1px solid #E4EAEF;
+			&:first-child {
+				border-top: none;
+			}
+			&:hover {
+				background: #53cdec;
+				color: white;
+				border-color: #46BCD9;
+				+ a {
+					border-color: #46BCD9;					
+				}
+			}
+		}
+	}
+}
+
 
 #wrapper {
 	position: absolute;

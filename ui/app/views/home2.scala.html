@@ -1,0 +1,156 @@
+@(model: HomeModel, newApp: Form[NewAppForm])(implicit request: RequestHeader)
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>Typesafe Activator</title>
+		<!-- Initialize global Javascript values... -->
+		<script type="text/javascript">
+			window.wsUrl = '@routes.Application.homeStream.webSocketURL()';
+		</script>
+		<script data-main="/public/javascripts/bootstrap.js" type="text/javascript" src="/public/javascripts/vendors/require.min.js"></script>
+		<script type="text/javascript" src="/public/javascripts/home.js"></script>
+		<link rel="stylesheet" media="screen" href="/public/stylesheets/home.css">
+		<link rel="shortcut icon" type="image/png" href="/public/images/favicon.png">
+		<script>
+			(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+				(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+					m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+			})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+			ga('create', 'UA-40492643-1', {
+				'cookieDomain': 'none'
+			});
+			ga('send', 'pageview');
+		</script>
+	</head>
+	<body class="@{if(model.acceptedLicense) "accepted" else ""}">
+
+		<h1>Typesafe Activator</h1>
+
+
+		<section id="license">
+			<header>
+				<h2>Licence</h2>
+			</header>
+			<article>
+				<p>To use Typesafe Activator, you must accept the license and subscription agreement.</p>
+				<div class="w"><iframe src="/public/license/agreement.html"></iframe></div>
+				<input type="submit" class="button" value="Accept" id="acceptYesButton">
+			</article>
+		</section>
+
+
+		<section id="working">
+			<header>
+				<h2>Your application is being opened</h2>
+			</header>
+			<article>
+				<p>This will just take a minute...</p>
+				<div class="logs" id="loading-logs"></div>
+			</article>
+		</section>
+
+
+		<section id="open">
+			<header>
+				<input type="submit" value="📁" id="openButton">
+				<h2>Open app</h2>
+			</header>
+			<article id="openAppForm">
+				<ul class="list">
+					@model.recentApps.map { app =>
+						<li class="recentApp">
+							<h3><a href="@routes.Application.app(app.id)">@app.cachedName.getOrElse(app.id)</a></h3>
+							<p class="path"><span>@app.location</span></p>
+						</li>
+					}
+				</ul>
+			</article>
+			<article id="openAppLocationBrowser" class="subsection hidden"></article>
+		</section>
+
+
+		<section id="new">
+			<div class="half">
+				<header>
+					<h2>New application</h2>
+				</header>
+				<article>
+					<ul class="list">
+					@model.templates.map { template =>
+						<li class="template">
+							<input type="radio" name="template" value="@template.id" data-snap-name-ref="@template.name">
+							<h3><span class="archetype">@template.tags.headOption.map(x=>s"[$x] ").getOrElse("")</span>@template.title</h3>
+							<p>@template.description</p>
+						</li>
+					}
+					</ul>
+				</article>
+			</div>
+
+			<div id="welcome" class="half right">
+				<h3>Create a new application</h3>
+				<p>Build apps in a snap! Typesafe Activator is a local-running web application. Create new apps from templates. Browse & edit code. Run apps and tests. Community created templates & plugins are coming soon!</p>
+				<ol class="steps">
+					<li>Choose a template</li>
+					<li>Give it a name and location</li>
+					<li>Hack!</li>
+				</ol>
+				<h4>Here some inspiration...</h4>
+				<ul class="inspiration">
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+				</ul>
+			</div>
+
+			<div id="viewTemplate" class="half right" style="display:none;">
+				<div class="template">
+					<h3>Akka and Spray</h3>
+					<ul class="tags">
+						<li>Tag</li>
+						<li>Tag</li>
+						<li>Tag</li>
+					</ul>
+					<p>Builds simple Actor-based REST server. Demonstrates the usage of Spray to build the RESTful API layer; as well as general structure of such REST actor-based applications. Includes tests for the API layer.</p>
+					<div class="author">
+						<cite>by John Doe (<a href="">@@johndoe</a>)</cite>
+						<a href="#" class="source">github.com/johndoe/activator-akka-spray</a>
+					</div>
+				</div>
+				@helper.form(action = routes.Application.forceHome, 'id -> "newApp") {
+					<input type="hidden" id="newAppTemplateName" name="template-name" placeholder="Choose from the list below" disabled required>
+					<fieldset>
+						<label for="newappName">Name</label>
+						<input type="text" id="newappName" name="name">
+					</fieldset>
+					<fieldset>
+						<label for="newappLocation">Location</label>
+						<a href="#" id="browseAppLocation"></a>
+						<input type="text" id="newappLocation" name="location" value="@model.userHome">
+					</fieldset>
+					<div class="select">
+						<input type="submit" class="button" value="Create" id="newButton" disabled>
+					</div>
+				}
+			</div>
+		</section>
+	
+
+	</body>
+</html>

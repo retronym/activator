@@ -99,6 +99,15 @@ object Application extends Controller {
     }
   }
 
+  /** Loads the homepage, with a blank new-app form. */
+  def forceHome2 = Action { implicit request =>
+    Async {
+      homeModel map { model =>
+        Ok(views.html.home2(model, newAppForm))
+      }
+    }
+  }
+
   def test = Action { implicit request =>
     import Play.current
     if (Play.mode == Mode.Dev)

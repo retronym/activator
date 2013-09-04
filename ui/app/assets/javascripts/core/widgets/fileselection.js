@@ -74,18 +74,24 @@ define(['css!./fileselection.css', 'text!./fileselection.html', 'vendors/knockou
 			} else {
 				this.loadRoots();
 			}
-		},
-		click: function(file) {
-			if(file == this.currentHighlight()) {
-				if(file.location) {
-					this.load(file.location);
-				} else {
-					// TODO - Only on windows.
-					this.loadRoots();
-				}
-			} else {
-				this.highlight(file);
-			}
+			$("#openAppLocationBrowser")
+				.on("click", ".directories li", function(){
+					//retrieve the context
+					var context = ko.contextFor(this);
+					self.highlight(context.$data);
+					return false;
+				})
+				.on("dblclick", ".directories li", function(){
+					//retrieve the context
+					var context = ko.contextFor(this);
+					if(context.$data.location) {
+						self.load(context.$data.location);
+					} else {
+						// TODO - Only on windows.
+						self.loadRoots();
+					}
+					return false;
+				});
 		},
 		highlight: function(file) {
 			$.each($.grep(this.currentFiles(), fileIsHighlighted), function(idx, item) {
