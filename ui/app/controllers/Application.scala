@@ -3,23 +3,16 @@ package controllers
 import play.api.mvc.{ Action, Controller, WebSocket }
 import java.io.File
 import scala.concurrent.Future
-import scala.concurrent.Promise
-import scala.concurrent.duration._
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
-import play.api.libs.json.{ JsString, JsObject, JsArray, JsNumber, JsValue }
+import play.api.libs.json._
 import snap.{ RootConfig, AppConfig, AppManager, Platform, DeathReportingProxy }
-import activator.ProcessResult
-import activator.cache.TemplateMetadata
 import activator.properties.ActivatorProperties
-import scala.util.control.NonFatal
-import scala.util.Try
 import play.Logger
-import play.api.libs.iteratee.{ Iteratee, Enumerator, Concurrent, Input }
+import play.api.libs.iteratee.{ Iteratee, Enumerator }
 import play.api.Play
 import play.api.Mode
-import akka.pattern._
-import snap.CloseWebSocket
 import java.util.concurrent.atomic.AtomicInteger
+import activator.cache.TemplateMetadata
 
 case class ApplicationModel(
   id: String,
@@ -29,6 +22,10 @@ case class ApplicationModel(
   template: Option[String],
   recentApps: Seq[AppConfig],
   hasLocalTutorial: Boolean) {
+}
+
+object ApplicationModel {
+  implicit val writes = Json.writes[ApplicationModel]
 }
 
 case class HomeModel(
@@ -47,8 +44,6 @@ case class FromLocationForm(location: String)
 
 // Here is where we detect if we're running at a given project...
 object Application extends Controller {
-
-  def jsEscape(s: String): String = "\"" + org.apache.commons.lang3.StringEscapeUtils.escapeEcmaScript(s) + "\""
 
   /**
    * Our index page.  Either we load an app from the CWD, or we direct
@@ -112,15 +107,14 @@ object Application extends Controller {
     Async {
       // TODO - Different results of attempting to load the application....
       Logger.debug("Loading app for /app html page")
-      // we kill off any previous browser tab
-      AppManager.loadTakingOverApp(id) map { theApp =>
+      AppManager.loadApp(id).map { theApp =>
         Logger.debug(s"loaded for html page: ${theApp}")
         Ok(views.html.application(getApplicationModel(theApp)))
       } recover {
         case e: Exception =>
           // TODO we need to have an error message and "flash" it then
           // display it on home screen
-          Logger.error("Failed to load app id " + id + ": " + e.getMessage(), e)
+          Logger.error("Failed to load app id " + id + ": " + e.getMessage())
           Redirect(routes.Application.forceHome)
       }
     }
@@ -161,19 +155,22 @@ object Application extends Controller {
    */
   def connectApp(id: String) = WebSocket.async[JsValue] { request =>
     Logger.debug("Connect request for app id: " + id)
-    val streamsFuture = snap.Akka.retryOverMilliseconds(2000)(connectionStreams(id))
+    // we kill off any previous browser tab
+    AppManager.loadTakingOverApp(id) flatMap { theApp =>
+      val streamsFuture = snap.Akka.retryOverMilliseconds(2000)(connectionStreams(id))
 
-    streamsFuture onFailure {
-      case e: Throwable =>
-        Logger.warn(s"Giving up on opening websocket")
+      streamsFuture onFailure {
+        case e: Throwable =>
+          Logger.warn(s"Giving up on opening websocket")
+      }
+
+      streamsFuture
     }
-
-    streamsFuture
   }
 
   /** List all the applications in our history as JSON. */
   def getHistory = Action { request =>
-    Ok(JsArray(RootConfig.user.applications.map(_.toJson)))
+    Ok(Json.toJson(RootConfig.user.applications))
   }
 
   /**
@@ -185,7 +182,7 @@ object Application extends Controller {
       app.config.id,
       Platform.getClientFriendlyFilename(app.config.location),
       // TODO - These should be drawn from the template itself...
-      Seq("plugins/home/home", "plugins/code/code", "plugins/compile/compile", "plugins/run/run", "plugins/test/test"),
+      Seq("plugins/home/home", "plugins/code/code", "plugins/compile/compile", "plugins/test/test", "plugins/run/run"),
       app.config.cachedName getOrElse app.config.id,
       // TODO - something less lame than exception here...
       app.templateID,

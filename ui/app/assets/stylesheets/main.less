@@ -126,6 +126,7 @@ body > header {
 	height: 50px;
 	background: url(/public/images/typesafe.png);
 	background-size: 50px;
+	border-left: solid 2px #29353e;
 	text-indent: -99em;
 	overflow: hidden;
 	border-left: 1px solid #29353E;
@@ -181,15 +182,6 @@ body > aside {
 		text-align: center;
 		vertical-align: middle;
 	}
-	&.open:after {
-		content: " ";
-		position: fixed;
-		top: 0;
-		left: 0;
-		bottom: 0;
-		right: 0;
-		z-index: 9990;
-	}
 
 	> div {
 		display: none;
@@ -233,7 +225,6 @@ body > aside {
         }
     }
 }
-
 
 #user {
 	display: block;
@@ -342,7 +333,6 @@ body.right-open {
         }
     }
 }
-
 
 @import '_app.less';
 @import 'modules/_list.less';
