@@ -66,12 +66,10 @@ object TheActivatorBuild extends Build {
   
   // Helpers to let us grab necessary sbt remote control artifacts, but not actually depend on them at
   // runtime.
-  lazy val SbtRcUIConfig = config("sbtrcui")
-  lazy val SbtRcControllerConfig = config("sbtrccontroller")
-  def makeRemoteControllerClasspath(update: sbt.UpdateReport): String = {
-     val uiClasspath = update.matching(configurationFilter(SbtRcUIConfig.name))
-     val controllerClasspath = update.matching(configurationFilter(SbtRcControllerConfig.name))
-     Path.makeString(controllerClasspath ++ uiClasspath)
+  lazy val SbtProbesConfig = config("sbtprobes")
+  def makeProbeClasspath(update: sbt.UpdateReport): String = {
+     val probeClasspath = update.matching(configurationFilter(SbtProbesConfig.name))
+     Path.makeString(probeClasspath)
   }
   
   def configureSbtTest(testKey: Scoped) = Seq(
@@ -85,7 +83,7 @@ object TheActivatorBuild extends Build {
       (launcher, oldOptions, updateReport) =>
         oldOptions ++ Seq("-Dsbtrc.no-shims=true",
                           "-Dsbtrc.launch.jar=" + launcher.getAbsoluteFile.getAbsolutePath,
-                          "-Dsbtrc.controller.classpath=" + makeRemoteControllerClasspath(updateReport)) ++
+                          "-Dsbtrc.controller.classpath=" + makeProbeClasspath(updateReport)) ++
       (if (verboseSbtTests)
         Seq("-Dakka.loglevel=DEBUG",
             "-Dakka.actor.debug.autoreceive=on",
@@ -98,11 +96,13 @@ object TheActivatorBuild extends Build {
   lazy val ui = (
     ActivatorPlayProject("ui")
     dependsOnRemote(
+      webjarsPlay3, requirejs, jquery, knockout, ace, requireCss, requireText, keymage,
       commonsIo, mimeUtil, slf4jLog4j,
       sbtLauncherInterface % "provided",
-      sbtrcParent % "compile;test->test",
-      sbtshimUiInterface % "sbtrcui->default(compile)",
-      sbtrcController % "sbtrccontroller->default(compile)"
+      sbtrcRemoteController % "compile;test->test",
+      // Here we hack our probes into the UI project.
+      sbtrcProbe12 % "sbtprobes->default(compile)",
+      sbtshimUiInterface12 % "sbtprobes->default(compile)"
     )
     dependsOn(props, uiCommon)
     settings(play.Project.playDefaultPort := 8888)
@@ -112,8 +112,7 @@ object TheActivatorBuild extends Build {
     // set up debug props for "run"
     settings(
       // Here we hack so that we can see the sbt-rc classes...
-      Keys.ivyConfigurations ++= Seq(SbtRcUIConfig, SbtRcControllerConfig),
-      
+      Keys.ivyConfigurations ++= Seq(SbtProbesConfig),
       Keys.update <<= (
           SbtSupport.sbtLaunchJar,
           Keys.update,
@@ -122,7 +121,7 @@ object TheActivatorBuild extends Build {
           // We register the location after it's resolved so we have it for running play...
           sys.props("sbtrc.launch.jar") = launcher.getAbsoluteFile.getAbsolutePath
           // The debug variant of the sbt finder automatically splits the ui + controller jars appart.
-          sys.props("sbtrc.controller.classpath") = makeRemoteControllerClasspath(update)
+          sys.props("sbtrc.controller.classpath") = makeProbeClasspath(update)
           sys.props("activator.template.cache") = templateCache.getAbsolutePath
           sys.props("activator.runinsbt") = "true"
           System.err.println("Updating sbt launch jar: " + sys.props("sbtrc.launch.jar"))
@@ -166,7 +165,7 @@ object TheActivatorBuild extends Build {
   lazy val it = (
       ActivatorProject("integration-tests")
       settings(integration.settings:_*)
-      dependsOnRemote(sbtLauncherInterface, sbtIo210, sbtrcParent)
+      dependsOnRemote(sbtLauncherInterface, sbtIo210, sbtrcRemoteController)
       dependsOn(props)
       settings(
         com.typesafe.sbtidea.SbtIdeaPlugin.ideaIgnoreModule := true,
@@ -201,59 +200,47 @@ object TheActivatorBuild extends Build {
       localRepoArtifacts <++= (publishedProjects.toSeq map { ref =>
         (Keys.projectID in ref) apply { id => id }
       }).join,
-      localRepoArtifacts ++=
-        Seq("org.scala-sbt" % "sbt" % Dependencies.sbtVersion,
-            // For some reason, these are not resolving transitively correctly!
-            "org.scala-lang" % "scala-compiler" % Dependencies.sbtPluginScalaVersion,
-            "org.scala-lang" % "scala-compiler" % Dependencies.scalaVersion,
-            // TODO - Why do we have to specify these?
-            jna,
-            jline,
-            jsch,
-            commonsCodec,
-            commonsHttpClient,
-            guava,
-            xmlApis,
-            // USED BY templates. TODO - autofind these
-            playJava,
-            scalatest,
-            webjars,
-            webjarsBootstrap,
-            //"org.webjars" % "bootstrap" % "2.1.1",
-            webjarsFlot,
-            webjarsPlay,
-            // WTF ANORM?
-            "org.avaje.ebeanorm" % "avaje-ebeanorm" % "3.2.1",
-            "org.avaje.ebeanorm" % "avaje-ebeanorm" % "3.1.2",
-            "org.avaje.ebeanorm" % "avaje-ebeanorm" % "3.1.1",
-            "org.avaje.ebeanorm" % "avaje-ebeanorm-agent" % "3.1.1",
-            "org.avaje.ebeanorm" % "avaje-ebeanorm-agent" % "3.2.1",
-            
-            "junit" % "junit" % "3.8.1",
-            "junit" % "junit-dep" % "4.8.2",
-            "junit" % "junit" % "4.11",
-            "com.novocode" % "junit-interface" % "0.7",
-            
-            // Hipster akka required for the Java API.
-            // Remove when we consolidate akka versions.
-            "com.typesafe.akka" % "akka-actor_2.10" % "2.2-M3",
-            "com.typesafe.akka" % "akka-testkit_2.10" % "2.2-M3",
-            // Regular akka for normal folks
-            akkaActor,
-            akkaSlf4j,
-            akkaTestkit,
-            sbtrcParent,
-            sbtrcController,
-            sbtshimDefaults,
-            sbtshimPlay,
-            sbtshimEclipse,
-            sbtshimIdea
-        ),
-      localRepoArtifacts ++=  Seq(
+      localRepoArtifacts ++= Seq(
+        
+        // base dependencies
+        "org.scala-sbt" % "sbt" % Dependencies.sbtVersion,
+        "org.scala-lang" % "scala-compiler" % Dependencies.sbtPluginScalaVersion,
+        "org.scala-lang" % "scala-compiler" % Dependencies.scalaVersion,
+      
+        // sbt stuff
+        sbtrcRemoteController,
+        sbtrcProbe12,
+        sbtshimDefaults12,
+        sbtshimPlay12,
+        sbtshimEclipse12,
+        sbtshimIdea12,
+  
+        // sbt plugins
         playSbtPlugin,
         eclipseSbtPlugin,
         ideaSbtPlugin,
-        pgpPlugin
+        pgpPlugin,
+  
+  
+        // featured template deps
+        // note: do not use %% here
+        "org.scalatest" % "scalatest_2.10" % "1.9.1",
+        "com.typesafe.akka" % "akka-actor_2.10" % "2.2.0",
+        "com.typesafe.akka" % "akka-testkit_2.10" % "2.2.0",
+        "org.scalatest" % "scalatest_2.10" % "1.9.1",
+        "junit" % "junit" % "4.11",
+        "com.novocode" % "junit-interface" % "0.7",
+        "org.webjars" % "webjars-play_2.10" % "2.1.0-3",
+        "org.webjars" % "bootstrap" % "2.3.1",
+        "org.webjars" % "flot" % "0.8.0",
+        "play" % "play-java_2.10" % "2.1.3",
+        "play" % "play-test_2.10" % "2.1.3",
+      
+        // failed transatives
+        "junit" % "junit" % "3.8.1",
+        "com.jcraft" % "jsch" % "0.1.44-1",
+        "jline" % "jline" % "0.9.94",
+        "com.typesafe.akka" % "akka-slf4j_2.10" % "2.2.0"
       ),
       Keys.mappings in S3.upload <<= (Keys.packageBin in Universal, Keys.version) map { (zip, v) =>
         Seq(zip -> ("typesafe-activator/%s/typesafe-activator-%s.zip" format (v, v)))

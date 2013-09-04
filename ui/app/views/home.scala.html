@@ -25,84 +25,132 @@
 		</script>
 	</head>
 	<body class="">
-	    <div id="licensePage" class="@{if(model.acceptedLicense) "hidden" else ""}">
-	        <div class="acceptForm">
-	          <h1>To use Typesafe Activator, you must accept the license and subscription agreement.</h1>
-			  <input type="submit" class="button" value="Accept" id="acceptYesButton">
-	          <input type="submit" class="button" value="Close" id="acceptNoButton">	          
-	        </div>
-        	<iframe src="/public/license/agreement.html"></iframe>
-	    </div>
-		<div id="workingPage" class="hidden">
-            <article class="welcome">
-                <h1>Your application is being opened!</h1>
-                <p>This will just take a minute...</p>
-                <div class="logs" id="loading-logs">
-                </div>
-            </article>
-		</div>
-		<div id="templatePage" class="hidden"></div>
-		<div id="homePage" class="@{if(!model.acceptedLicense) "hidden" else ""}">
-			<article class="welcome">
-				<h1>Typesafe Activator</h1>
-				<p>Build apps in a snap! Typesafe Activator is a local-running web application.  Create new apps from templates.  Browse &amp; edit code.  Run apps and tests.</p>
-				<p style="font-style: italic">Community created templates &amp; plugins are coming soon!</p>
+
+		<h1>Typesafe Activator</h1>
+
+
+		<section id="license">
+			<header>
+				<h2>Licence</h2>
+			</header>
+			<article>
+				<p>To use Typesafe Activator, you must accept the license and subscription agreement.</p>
+				<div class="w"><iframe src="/public/license/agreement.html"></iframe></div>
+				<input type="submit" class="button" value="Accept" id="acceptYesButton">
 			</article>
+		</section>
+
+
+		<section id="working">
+			<header>
+				<h2>Your application is being opened</h2>
+			</header>
+			<article>
+				<p>This will just take a minute...</p>
+				<div class="logs" id="loading-logs"></div>
+			</article>
+		</section>
+
+
+		<section id="open">
+			<header>
+				<input type="submit" value="📁" id="openButton">
+				<h2>Open app</h2>
+			</header>
+			<article id="openAppForm">
+				<ul class="list">
+					@model.recentApps.map { app =>
+						<li class="recentApp">
+							<h3><a href="@routes.Application.app(app.id)">@app.cachedName.getOrElse(app.id)</a></h3>
+							<p class="path"><span>@app.location</span></p>
+						</li>
+					}
+				</ul>
+			</article>
+			<article id="openAppLocationBrowser" class="subsection hidden"></article>
+		</section>
+
+
+		<section id="new">
+			<div class="half">
+				<header>
+					<h2>New application</h2>
+				</header>
+				<article>
+					<ul class="list">
+					@model.templates.map { template =>
+						<li class="template">
+							<input type="radio" name="template" value="@template.id" data-snap-name-ref="@template.name">
+							<h3><span class="archetype">@template.tags.headOption.map(x=>s"[$x] ").getOrElse("")</span>@template.title</h3>
+							<p>@template.description</p>
+						</li>
+					}
+					</ul>
+				</article>
+			</div>
+
+			<div id="welcome" class="half right">
+				<h3>Create a new application</h3>
+				<p>Build apps in a snap! Typesafe Activator is a local-running web application. Create new apps from templates. Browse & edit code. Run apps and tests. Community created templates & plugins are coming soon!</p>
+				<ol class="steps">
+					<li>Choose a template</li>
+					<li>Give it a name and location</li>
+					<li>Hack!</li>
+				</ol>
+				<h4>Here some inspiration...</h4>
+				<ul class="inspiration">
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+					<li>Tag</li>
+				</ul>
+			</div>
+
+			<div id="viewTemplate" class="half right" style="display:none;">
+				<div class="template">
+					<h3>Akka and Spray</h3>
+					<ul class="tags">
+						<li>Tag</li>
+						<li>Tag</li>
+						<li>Tag</li>
+					</ul>
+					<p>Builds simple Actor-based REST server. Demonstrates the usage of Spray to build the RESTful API layer; as well as general structure of such REST actor-based applications. Includes tests for the API layer.</p>
+					<div class="author">
+						<cite>by John Doe (<a href="">@@johndoe</a>)</cite>
+						<a href="#" class="source">github.com/johndoe/activator-akka-spray</a>
+					</div>
+				</div>
+				@helper.form(action = routes.Application.forceHome, 'id -> "newApp") {
+					<input type="hidden" id="newAppTemplateName" name="template-name" placeholder="Choose from the list below" disabled required>
+					<fieldset>
+						<label for="newappName">Name</label>
+						<input type="text" id="newappName" name="name">
+					</fieldset>
+					<fieldset>
+						<label for="newappLocation">Location</label>
+						<a href="#" id="browseAppLocation"></a>
+						<input type="text" id="newappLocation" name="location" value="@model.userHome">
+					</fieldset>
+					<div class="select">
+						<input type="submit" class="button" value="Create" id="newButton" disabled>
+					</div>
+				}
+			</div>
+		</section>
 	
-			<section id="new">
-	            <div id="newAppForm" class="subsection">
-	                <h2>New application</h2>
-	                @helper.form(action = routes.Application.forceHome, 'id -> "newApp") {
-                        <fieldset>
-                            <label for="newappTemplate">Template</label>
-                            <input type="text" id="newAppTemplateName" name="template-name" placeholder="Choose from the list below" disabled required>
-                        </fieldset>
-	                    <fieldset>
-	                        <label for="newappName">Name</label>
-	                        <input type="text" id="newappName" name="name">
-	                    </fieldset>
-	                    <fieldset>
-	                        <label for="newappLocation">Location</label>
-	                        <a href="#" id="browseAppLocation"></a>
-	                        <input type="text" id="newappLocation" name="location" placeholder="@model.userHome">
-	                    </fieldset>
-	                    <div class="list-container">
-		                    <ul>
-		                    @model.templates.map { template =>
-		                        <li class="template">
-		                            <input type="radio" name="template" value="@template.id" data-snap-name-ref="@template.name">
-		                            <h3><span class="archetype">@template.tags.headOption.map(x=>s"[$x] ").getOrElse("")</span>@template.title</h3>
-		                            <p>@template.description</p>
-		                        </li>
-		                    }
-		                    </ul>
-		                    <div class="right">
-		                        <a href="#" id="showLink">Show all @model.otherTemplateCount templates</a>
-		                    </div>
-		                </div>
-	                    <div class="select">
-	                    	<input type="submit" class="button" value="Create" id="newButton" disabled>
-	                    </div>
-	                }
-	            </div>
-	            <div id="newAppLocationBrowser" class="subsection hidden"></div>
-			</section>
-	
-			<section id="open">
-	            <div id="openAppForm" class="subsection">
-				    <h2>Open existing app...</h2>
-	                <ul>
-					    @model.recentApps.map { app =>
-						    <li class="recentApp">
-							    <h3><a href="@routes.Application.app(app.id)">@app.cachedName.getOrElse(app.id)</a></h3>
-							    <p class="path"><span>@app.location</span></p>
-						    </li>
-					    }
-				     </ul>
-	                 <input type="submit" class="button" value="Find Existing" id="openButton">
-	            </div>
-	            <div id="openAppLocationBrowser" class="subsection hidden"></div>
-			</section>
-		</div>
+
 	</body>
 </html>

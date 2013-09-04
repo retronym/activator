@@ -1,11 +1,25 @@
+require.config({
+	baseUrl:	'/public',
+	// hack for now due to problem loading plugin loaders from a plugin loader
+	map: {
+		'*': {
+			'css': '../../webjars/require-css/0.0.7/css',
+			'text': '../../webjars/requirejs-text/2.0.10/text'
+		}
+	},
+	paths: {
+		core:		'javascripts/core',
+		plugins:	'plugins'
+	}
+});
+
 require([
 	// Vendors
-	'vendors/text',
-	'vendors/css',
-	'vendors/jquery-2.0.0b1',
-	'vendors/knockout-2.2.0',
-	'vendors/chain',
-	'vendors/keymage.min'
+	'../../webjars/requirejs-text/2.0.10/text',
+	'../../webjars/require-css/0.0.7/css',
+	'webjars!jquery',
+	'webjars!knockout',
+	'webjars!keymage'
 ],function(){
 	require([
 	'core/streams',
@@ -15,25 +29,6 @@ require([
 	], function(streams, FileSelection, log, TemplateList) {
 		// Register handlers on the UI.
 		$(function() {
-			// Note: These only show up if we haven't accepted this license.
-			var acceptYesButton = $('#acceptYesButton');
-			// var acceptNoButton = $('#acceptNoButton');
-			// acceptNoButton.on('click', function(e) {
-			// 	e.preventDefault();
-			// 	if(confirm('You will be unable to use activator.\n'+
-			// 			'Please close this webpage, stop the server and remove all activator software.')) {
-			// 		// Note: this will only work on some browsers.
-			// 		window.close();
-			// 	}
-			// });
-			acceptYesButton.on('click', function(e) {
-				// Tell the server we accepted.
-				var event = {
-						request: 'LicenseAccepted'
-				};
-				console.log('Sending: ', event)
-				streams.send(event);
-			});
 			// Create log widget before we start recording websocket events...
 			var logs = new log.Log();
 			logs.renderTo($('#loading-logs'));
@@ -54,9 +49,6 @@ require([
 			streams.subscribe(function(event) {
 				// Handle all the remote events here...
 				switch(event.response) {
-					case 'LicenseAccepted':
-						$('body').toggleClass("accepted");
-						break;
 					case 'Status':
 						logs.info(event.info);
 						break;

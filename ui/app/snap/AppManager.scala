@@ -5,7 +5,9 @@ import java.io.File
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import scala.concurrent.Promise
 import akka.pattern._
-import com.typesafe.sbtrc._
+import com.typesafe.sbtrc.launching.SbtProcessLauncher
+import com.typesafe.sbtrc.DefaultSbtProcessFactory
+import com.typesafe.sbtrc.protocol
 import play.Logger
 import akka.util.Timeout
 import java.util.concurrent.TimeUnit
@@ -68,11 +70,17 @@ class AppCacheActor extends Actor with ActorLogging {
       case GetApp(id) =>
         appCache.get(id) match {
           case Some(f) =>
-            f.map(GotApp(_)).pipeTo(sender)
+            log.debug(s"returning existing app from app cache for $id")
+            f map { a =>
+              log.debug(s"existing app $a terminated=${a.actor.isTerminated}")
+              GotApp(a)
+            } pipeTo sender
           case None => {
             val appFuture: Future[snap.App] = RootConfig.user.applications.find(_.id == id) match {
               case Some(config) =>
-                Promise.successful(new snap.App(config, snap.Akka.system, AppManager.sbtChildProcessMaker)).future
+                val app = new snap.App(config, snap.Akka.system, AppManager.sbtChildProcessMaker)
+                log.debug(s"creating a new app for $id, $app")
+                Promise.successful(app).future
               case whatever =>
                 Promise.failed(new RuntimeException("No such app with id: '" + id + "'")).future
             }
@@ -172,7 +180,7 @@ object AppManager {
   // this is supposed to be set by the main() launching the UI.
   // If not, we know we're running inside the build and we need
   // to use the default "Debug" version.
-  @volatile var sbtChildProcessMaker: SbtProcessLauncher = DebugSbtProcessLauncher
+  def sbtChildProcessMaker: SbtProcessLauncher = Global.sbtProcessLauncher
 
   private val keepAlive = snap.Akka.system.actorOf(Props(new KeepAliveActor), name = "keep-alive")
 
@@ -195,6 +203,27 @@ object AppManager {
     implicit val timeout = Akka.longTimeoutThatIsAProblem
     (appCache ? GetApp(id)).map {
       case GotApp(app) => app
+    }
+  }
+
+  // If the app actor is already in use, disconnect
+  // it and make a new one.
+  def loadTakingOverApp(id: String): Future[snap.App] = {
+    Akka.retryOverMilliseconds(4000) {
+      loadApp(id) flatMap { app =>
+        implicit val timeout = akka.util.Timeout(5.seconds)
+        DeathReportingProxy.ask(Akka.system, app.actor, GetWebSocketCreated) map {
+          case WebSocketCreatedReply(created) =>
+            if (created) {
+              Logger.debug(s"browser tab already connected to $app, disconnecting it")
+              app.actor ! PoisonPill
+              throw new Exception("retry after killing app actor")
+            } else {
+              Logger.debug(s"app looks shiny and new! $app")
+              app
+            }
+        }
+      }
     }
   }
 

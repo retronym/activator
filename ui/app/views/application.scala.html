@@ -16,6 +16,7 @@
 		<title>Typesafe Activator</title>
 		<script type="text/javascript">
 		window.wsUrl = '@routes.Application.connectApp(model.id).webSocketURL()';
+        // todo: use Play JSON to do this
 		window.serverAppModel = {
       name: @Html(jsEscape(model.name)),
       id: @Html(jsEscape(model.id)),
@@ -30,16 +31,10 @@
       }
     };
 		</script>
-		<script data-main="/public/javascripts/bootstrap.js" type="text/javascript" src="/public/javascripts/vendors/require.min.js"></script>
-		<script type="text/javascript" src="/public/javascripts/application.js"></script>
+		<script data-main='@routes.Assets.at("javascripts/application.js")' type='text/javascript' src='@routes.WebJarAssets.requirejs()'></script>
 		<link rel="stylesheet" media="screen" href="/public/stylesheets/main.css">
 		<link rel="shortcut icon" type="image/png" href="/public/images/favicon.png">
 
-        <!-- ZenDesk Integration -->
-        <script type="text/javascript" src="//assets.zendesk.com/external/zenbox/v2.6/zenbox.js"></script>
-        <style type="text/css" media="screen, projection">
-            @@import url(//assets.zendesk.com/external/zenbox/v2.6/zenbox.css);
-        </style>
 		<script>
 			(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
 				(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
@@ -101,18 +96,5 @@
         <div id="wrapper" data-bind="foreach: { data: widgets }, visible: snap.activeWidget() != undefined">
           <div class="widget" data-bind="snapView: $data, visible: id == $parent.snap.activeWidget()"></div>
         </div>
-        <script type="text/javascript">
-            if (typeof(Zenbox) !== "undefined") {
-                Zenbox.init({
-                    dropboxID:   "20150671",
-                    url:         "https://typesafe.zendesk.com",
-                    tabID:       "feedback",
-                    tabText:     "Feedback",
-                    tabColor:    "black",
-                    tabPosition: "Right",
-                    hide_tab:    "true"
-                });
-            }
-        </script>
 	</body>
 </html>

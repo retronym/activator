@@ -1,6 +1,7 @@
 package snap
 
 import com.typesafe.sbtrc._
+import com.typesafe.sbtrc.launching.SbtProcessLauncher
 import akka.actor._
 import java.io.File
 import java.util.UUID
@@ -15,6 +16,7 @@ import activator._
 sealed trait AppRequest
 
 case class GetTaskActor(id: String, description: String) extends AppRequest
+case object GetWebSocketCreated extends AppRequest
 case object CreateWebSocket extends AppRequest
 case class NotifyWebSocket(json: JsObject) extends AppRequest
 case object InitialTimeoutExpired extends AppRequest
@@ -25,6 +27,7 @@ sealed trait AppReply
 
 case class TaskActorReply(ref: ActorRef) extends AppReply
 case object WebSocketAlreadyUsed extends AppReply
+case class WebSocketCreatedReply(created: Boolean) extends AppReply
 
 class AppActor(val config: AppConfig, val sbtProcessLauncher: SbtProcessLauncher) extends Actor with ActorLogging {
 
@@ -35,7 +38,8 @@ class AppActor(val config: AppConfig, val sbtProcessLauncher: SbtProcessLauncher
   val childFactory = new DefaultSbtProcessFactory(location, sbtProcessLauncher)
   val sbts = context.actorOf(Props(new ChildPool(childFactory)), name = "sbt-pool")
   val socket = context.actorOf(Props(new AppSocketActor()), name = "socket")
-  val watcher = context.actorOf(Props(new FileWatcher()), name = "watcher")
+  val projectWatcher = context.actorOf(Props(new ProjectWatcher(location, newSourcesSocket = socket, sbtPool = sbts)),
+    name = "projectWatcher")
 
   var webSocketCreated = false
 
@@ -43,27 +47,24 @@ class AppActor(val config: AppConfig, val sbtProcessLauncher: SbtProcessLauncher
 
   context.watch(sbts)
   context.watch(socket)
-  context.watch(watcher)
+  context.watch(projectWatcher)
 
   // we can stay alive due to socket connection (and then die with the socket)
   // or else we just die after being around a short time
   context.system.scheduler.scheduleOnce(2.minutes, self, InitialTimeoutExpired)
-
-  // get file watch notifications
-  watcher ! SubscribeFileChanges(self)
 
   override val supervisorStrategy = SupervisorStrategy.stoppingStrategy
 
   override def receive = {
     case Terminated(ref) =>
       if (ref == sbts) {
-        log.info("sbt pool terminated, killing AppActor")
+        log.info(s"sbt pool terminated, killing AppActor ${self.path.name}")
         self ! PoisonPill
       } else if (ref == socket) {
-        log.info("socket terminated, killing AppActor")
+        log.info(s"socket terminated, killing AppActor ${self.path.name}")
         self ! PoisonPill
-      } else if (ref == watcher) {
-        log.info("watcher terminated, killing AppActor")
+      } else if (ref == projectWatcher) {
+        log.info(s"projectWatcher terminated, killing AppActor ${self.path.name}")
         self ! PoisonPill
       } else {
         tasks.find { kv => kv._2 == ref } match {
@@ -83,6 +84,8 @@ class AppActor(val config: AppConfig, val sbtProcessLauncher: SbtProcessLauncher
         context.watch(task)
         log.debug("created task {} {}", taskId, task)
         sender ! TaskActorReply(task)
+      case GetWebSocketCreated =>
+        sender ! WebSocketCreatedReply(webSocketCreated)
       case CreateWebSocket =>
         log.debug("got CreateWebSocket")
         if (webSocketCreated) {
@@ -109,12 +112,7 @@ class AppActor(val config: AppConfig, val sbtProcessLauncher: SbtProcessLauncher
           ref ! ForceStop
         }
       case UpdateSourceFiles(files) =>
-        watcher ! SetFilesToWatch(files)
-    }
-
-    case event: FileWatcherEvent => event match {
-      case FilesChanged =>
-        socket ! NotifyWebSocket(JsObject(Seq("type" -> JsString("FilesChanged"))))
+        projectWatcher ! SetSourceFilesRequest(files)
     }
   }
 
@@ -134,6 +132,15 @@ class AppActor(val config: AppConfig, val sbtProcessLauncher: SbtProcessLauncher
       case _ => false
     }
     hasType || hasTaskId;
+  }
+
+  override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
+    super.preRestart(reason, message)
+    log.debug(s"preRestart, ${reason.getClass.getName}: ${reason.getMessage}, on $message")
+  }
+
+  override def postStop(): Unit = {
+    log.debug("postStop")
   }
 
   // this actor corresponds to one protocol.Request, and any

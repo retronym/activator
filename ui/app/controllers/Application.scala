@@ -3,9 +3,11 @@ package controllers
 import play.api.mvc.{ Action, Controller, WebSocket }
 import java.io.File
 import scala.concurrent.Future
+import scala.concurrent.Promise
+import scala.concurrent.duration._
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.libs.json.{ JsString, JsObject, JsArray, JsNumber, JsValue }
-import snap.{ RootConfig, AppConfig, AppManager, Platform }
+import snap.{ RootConfig, AppConfig, AppManager, Platform, DeathReportingProxy }
 import activator.ProcessResult
 import activator.cache.TemplateMetadata
 import activator.properties.ActivatorProperties
@@ -31,7 +33,6 @@ case class ApplicationModel(
 
 case class HomeModel(
   userHome: String,
-  acceptedLicense: Boolean,
   templates: Seq[TemplateMetadata],
   otherTemplateCount: Long,
   recentApps: Seq[AppConfig])
@@ -80,7 +81,6 @@ object Application extends Controller {
     val config = RootConfig.user
     HomeModel(
       userHome = ActivatorProperties.GLOBAL_USER_HOME,
-      acceptedLicense = config.acceptedLicense,
       templates = featured,
       otherTemplateCount = tempSeq.length,
       recentApps = config.applications)
@@ -99,15 +99,6 @@ object Application extends Controller {
     }
   }
 
-  /** Loads the homepage, with a blank new-app form. */
-  def forceHome2 = Action { implicit request =>
-    Async {
-      homeModel map { model =>
-        Ok(views.html.home2(model, newAppForm))
-      }
-    }
-  }
-
   def test = Action { implicit request =>
     import Play.current
     if (Play.mode == Mode.Dev)
@@ -120,7 +111,10 @@ object Application extends Controller {
   def app(id: String) = Action { implicit request =>
     Async {
       // TODO - Different results of attempting to load the application....
-      AppManager.loadApp(id) map { theApp =>
+      Logger.debug("Loading app for /app html page")
+      // we kill off any previous browser tab
+      AppManager.loadTakingOverApp(id) map { theApp =>
+        Logger.debug(s"loaded for html page: ${theApp}")
         Ok(views.html.application(getApplicationModel(theApp)))
       } recover {
         case e: Exception =>
@@ -132,30 +126,46 @@ object Application extends Controller {
     }
   }
 
-  /**
-   * Connects from an application page to the "stateful" actor/server we use
-   * per-application for information.
-   */
-  def connectApp(id: String) = WebSocket.async[JsValue] { request =>
-    Logger.info("Connect request for app id: " + id)
+  private def connectionStreams(id: String): Future[(Iteratee[JsValue, _], Enumerator[JsValue])] = {
+    Logger.debug(s"Computing connection streams for app ID $id")
     val streamsFuture = AppManager.loadApp(id) flatMap { app =>
+      Logger.debug(s"Loaded app for connection: $app")
       // this is just easier to debug than a timeout; it isn't reliable
       if (app.actor.isTerminated) throw new RuntimeException("App is dead")
 
       import snap.WebSocketActor.timeout
-      (app.actor ? snap.CreateWebSocket).map {
+      DeathReportingProxy.ask(app.system, app.actor, snap.CreateWebSocket).map {
         case snap.WebSocketAlreadyUsed =>
+          Logger.warn("web socket already in use for $app")
           throw new RuntimeException("can only open apps in one tab at a time")
-        case whatever => whatever
+        case whatever =>
+          Logger.debug(s"CreateWebSocket resulted in $whatever")
+          whatever
       }.mapTo[(Iteratee[JsValue, _], Enumerator[JsValue])].map { streams =>
-        Logger.info("WebSocket streams created")
+        Logger.debug("WebSocket streams created")
         streams
       }
     }
 
     streamsFuture onFailure {
       case e: Throwable =>
-        Logger.warn("WebSocket failed to open: " + e.getMessage)
+        Logger.info(s"WebSocket failed to open: ${e.getClass.getName}: ${e.getMessage}")
+    }
+
+    streamsFuture
+  }
+
+  /**
+   * Connects from an application page to the "stateful" actor/server we use
+   * per-application for information.
+   */
+  def connectApp(id: String) = WebSocket.async[JsValue] { request =>
+    Logger.debug("Connect request for app id: " + id)
+    val streamsFuture = snap.Akka.retryOverMilliseconds(2000)(connectionStreams(id))
+
+    streamsFuture onFailure {
+      case e: Throwable =>
+        Logger.warn(s"Giving up on opening websocket")
     }
 
     streamsFuture
